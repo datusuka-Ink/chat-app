@@ -14,6 +14,8 @@ export class LiveKitClient {
   private isConnected = false;
   private videoElement: HTMLVideoElement | null = null;
   private audioElement: HTMLAudioElement | null = null;
+  private attachedVideoTrack: RemoteTrack | null = null;
+  private pendingVideoTrack: RemoteTrack | null = null;
 
   constructor() {
     this.room = new Room({
@@ -26,8 +28,21 @@ export class LiveKitClient {
   }
 
   setVideoElement(element: HTMLVideoElement): void {
+    console.log('LiveKitClient: Setting video element', {
+      elementId: element.id,
+      hasExistingElement: !!this.videoElement,
+      hasPendingTrack: !!this.pendingVideoTrack
+    });
+
+    // 要素を保存
     this.videoElement = element;
-    console.log('Video element set for LiveKit');
+
+    // 保留中のトラックがあればアタッチ
+    if (this.pendingVideoTrack) {
+      console.log('LiveKitClient: Attaching pending track to video element');
+      this.pendingVideoTrack.attach(element);
+      this.pendingVideoTrack = null;
+    }
   }
 
   async connect(url: string, token: string): Promise<void> {
@@ -41,6 +56,10 @@ export class LiveKitClient {
 
       console.log('Connecting to LiveKit with URL:', url);
       console.log('Token:', token.substring(0, 50) + '...');
+
+      // 接続を準備（HeyGenドキュメント推奨）
+      await this.room.prepareConnection(url, token);
+      console.log('Connection prepared');
 
       // LiveKitルームに接続
       await this.room.connect(url, token);
@@ -56,6 +75,16 @@ export class LiveKitClient {
   private setupEventListeners(): void {
     if (!this.room) return;
 
+    // 参加者が追加された時
+    this.room.on(RoomEvent.ParticipantConnected, (participant) => {
+      console.log('Participant connected:', participant.identity, participant.sid);
+    });
+
+    // トラックが公開された時
+    this.room.on(RoomEvent.TrackPublished, (publication, participant) => {
+      console.log('Track published:', publication.trackName, 'by', participant.identity);
+    });
+
     // トラック受信時
     this.room.on(
       RoomEvent.TrackSubscribed,
@@ -66,24 +95,29 @@ export class LiveKitClient {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         _participant: RemoteParticipant
       ) => {
-        console.log('Track subscribed:', track.kind);
+        console.log('Track subscribed:', track.kind, 'sid:', track.sid);
 
         // ビデオトラックの場合、video要素にアタッチ
         if (track.kind === Track.Kind.Video) {
-          console.log('Received video track, attaching to element');
-          // 少し待ってからビデオエレメントを探す
-          setTimeout(() => {
-            const videoElement = document.getElementById('avatar-video') as HTMLVideoElement;
-            if (videoElement) {
-              track.attach(videoElement);
-              console.log('Video track attached to element by ID');
-            } else if (this.videoElement) {
-              track.attach(this.videoElement);
-              console.log('Video track attached to stored element');
-            } else {
-              console.error('No video element found to attach track');
-            }
-          }, 100);
+          console.log('LiveKitClient: Received video track', { trackSid: track.sid });
+
+          // 既にトラックがアタッチされている場合はスキップ
+          if (this.attachedVideoTrack) {
+            console.log('LiveKitClient: Video track already attached, ignoring new track');
+            return;
+          }
+
+          this.attachedVideoTrack = track;
+
+          // ビデオ要素が既に設定されている場合は即座にアタッチ
+          if (this.videoElement) {
+            console.log('LiveKitClient: Attaching video track to existing element');
+            track.attach(this.videoElement);
+          } else {
+            // ビデオ要素がない場合は保留（setVideoElementで後からアタッチされる）
+            console.log('LiveKitClient: Video element not ready, saving track');
+            this.pendingVideoTrack = track;
+          }
         }
 
         // オーディオトラックの場合、audio要素にアタッチ
@@ -112,6 +146,12 @@ export class LiveKitClient {
         _participant: RemoteParticipant
       ) => {
         console.log('Track unsubscribed:', track.kind);
+        if (track === this.attachedVideoTrack) {
+          this.attachedVideoTrack = null;
+        }
+        if (track === this.pendingVideoTrack) {
+          this.pendingVideoTrack = null;
+        }
         track.detach();
       }
     );
@@ -126,10 +166,25 @@ export class LiveKitClient {
       console.log('Room metadata changed:', metadata);
     });
 
+    // 参加者が切断された時
+    this.room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+      console.log('Participant disconnected:', participant.identity, participant.sid);
+    });
+
     // 切断時
-    this.room.on(RoomEvent.Disconnected, () => {
-      console.log('Disconnected from room');
+    this.room.on(RoomEvent.Disconnected, (reason) => {
+      console.log('Disconnected from room, reason:', reason);
       this.isConnected = false;
+    });
+
+    // 再接続中
+    this.room.on(RoomEvent.Reconnecting, () => {
+      console.log('Reconnecting to room...');
+    });
+
+    // 再接続完了
+    this.room.on(RoomEvent.Reconnected, () => {
+      console.log('Reconnected to room');
     });
   }
 
@@ -142,6 +197,11 @@ export class LiveKitClient {
       }
       this.isConnected = false;
     }
+
+    // クリーンアップ
+    this.attachedVideoTrack = null;
+    this.pendingVideoTrack = null;
+    this.videoElement = null;
 
     // オーディオエレメントのクリーンアップ
     if (this.audioElement) {
@@ -156,6 +216,10 @@ export class LiveKitClient {
 
   getConnectionState(): boolean {
     return this.isConnected;
+  }
+
+  getVideoElement(): HTMLVideoElement | null {
+    return this.videoElement;
   }
 
   // ローカルトラック（マイク・カメラ）を有効化

@@ -22,17 +22,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const taskPayload = {
+      session_id: sessionId,
+      text: text,
+      task_type: mode,
+    };
+
+    console.log('Sending task to HeyGen:', taskPayload);
+
     const response = await fetch(HEYGEN_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Api-Key': HEYGEN_API_KEY,
       },
-      body: JSON.stringify({
-        session_id: sessionId,
-        text: text,
-        task_type: mode,
-      }),
+      body: JSON.stringify(taskPayload),
     });
 
     if (!response.ok) {
@@ -45,9 +49,11 @@ export async function POST(request: NextRequest) {
     }
 
     const data = await response.json();
+    console.log('HeyGen task response:', data);
 
     return NextResponse.json({
       taskId: data.data?.task_id || 'unknown',
+      response: data,
     });
   } catch (error) {
     console.error('Task error:', error);

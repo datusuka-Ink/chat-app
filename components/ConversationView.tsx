@@ -82,12 +82,14 @@ export default function ConversationView() {
       const startData = await startResponse.json();
       console.log('Session started, response:', startData);
 
-      // 少し待機してからLiveKit接続
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // セッションが完全に開始されるまで待機（2秒）
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // LiveKit接続
       livekitClientRef.current = new LiveKitClient();
+      console.log('Attempting LiveKit connection...');
       await livekitClientRef.current.connect(livekitUrl, accessToken);
+      console.log('LiveKit connected successfully');
 
       // 音声レコーダー初期化
       audioRecorderRef.current = new AudioRecorder();
@@ -96,8 +98,8 @@ export default function ConversationView() {
       setIsSessionActive(true);
       setIsConnecting(false);
 
-      // さらに少し待機してトラックが来るのを待つ
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      // トラックが安定するまで待機（2秒）
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       // 初回挨拶
       const greetingMessage = 'こんにちは！新卒キャリアエージェントAIです。今日はキャリア相談をしながら、最後にあなたに合った求人を紹介させていただきます。まずは大学・学部や専攻、就活の進捗状況を教えていただけますか？';
@@ -136,6 +138,29 @@ export default function ConversationView() {
       sessionIdRef.current = null;
     } catch (error) {
       console.error('Failed to end session:', error);
+    }
+  };
+
+  // デバッグ: セッション状態確認
+  const checkSessionStatus = async () => {
+    try {
+      // 全セッション一覧を取得
+      const listResponse = await fetch('/api/heygen/status');
+      const listData = await listResponse.json();
+      console.log('Active sessions:', listData);
+
+      // 現在のセッション情報を取得
+      if (sessionIdRef.current) {
+        const infoResponse = await fetch('/api/heygen/status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionId: sessionIdRef.current }),
+        });
+        const infoData = await infoResponse.json();
+        console.log('Current session info:', infoData);
+      }
+    } catch (error) {
+      console.error('Failed to check session status:', error);
     }
   };
 
@@ -316,6 +341,8 @@ export default function ConversationView() {
     }
   };
 
+  // video要素はReact管理外になったので、参照の安定化は不要
+
   // モバイルレイアウト
   const MobileLayout = () => (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
@@ -324,41 +351,33 @@ export default function ConversationView() {
         <div className="px-4 py-3">
           <div className="flex justify-between items-center">
             <h1 className="text-lg font-semibold text-gray-900">
-              キャリア相談AI
+              新卒キャリア相談AI
             </h1>
-            <button
-              onClick={() => window.location.href = '/settings'}
-              className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
-            >
-              <Settings className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              {isSessionActive && (
+                <button
+                  onClick={checkSessionStatus}
+                  className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                  title="セッション状態を確認"
+                >
+                  🔍
+                </button>
+              )}
+              <button
+                onClick={() => window.location.href = '/settings'}
+                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+              >
+                <Settings className="w-5 h-5" />
+              </button>
+            </div>
           </div>
         </div>
       </header>
 
       <main className="flex-1 flex flex-col overflow-hidden">
-        {/* アバター表示部分（上半分） */}
-        <div className="h-1/2 relative bg-gray-900">
-          <VideoPanel
-            isActive={isSessionActive}
-            showSubtitles={showSubtitles}
-            subtitle={currentSubtitle}
-            livekitClient={livekitClientRef.current}
-          />
-
-          {/* 字幕トグル */}
-          {isSessionActive && (
-            <button
-              onClick={() => setShowSubtitles(!showSubtitles)}
-              className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
-                showSubtitles
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              <Subtitles className="w-5 h-5" />
-            </button>
-          )}
+        {/* アバター表示部分（上半分） - プレースホルダー */}
+        <div className="h-1/2 relative">
+          {/* 共通VideoPanelが背後に表示される */}
         </div>
 
         {/* インタラクション部分（下半分） */}
@@ -607,17 +626,26 @@ export default function ConversationView() {
         <div className="px-6 py-4">
           <div className="flex justify-between items-center">
             <h1 className="text-xl font-semibold text-gray-900">
-              キャリア相談AI
+              新卒キャリア相談AI
             </h1>
             <div className="flex items-center space-x-4">
               {isSessionActive && (
-                <button
-                  onClick={endSession}
-                  className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
-                >
-                  <PhoneOff className="w-5 h-5" />
-                  終了
-                </button>
+                <>
+                  <button
+                    onClick={checkSessionStatus}
+                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg"
+                    title="セッション状態を確認"
+                  >
+                    🔍
+                  </button>
+                  <button
+                    onClick={endSession}
+                    className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors flex items-center gap-2"
+                  >
+                    <PhoneOff className="w-5 h-5" />
+                    終了
+                  </button>
+                </>
               )}
               <button
                 onClick={() => window.location.href = '/settings'}
@@ -632,46 +660,54 @@ export default function ConversationView() {
 
       <main className="flex-1 flex overflow-hidden">
         {!isSessionActive ? (
-          /* セッション開始画面 */
-          <div className="flex-1 flex items-center justify-center p-8">
-            <div className="text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">
-                美容クリニック業界専門のキャリア相談を始めましょう
-              </h2>
-              <p className="text-gray-600 mb-8">
-                AIアバターがあなたのキャリア相談に対応し、最適な求人をご紹介します
-              </p>
-              <button
-                onClick={startSession}
-                disabled={isConnecting}
-                className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg transition-colors"
-              >
-                {isConnecting ? '接続中...' : 'キャリア相談を開始する'}
-              </button>
+          // セッション開始画面 - 右半分のみ使用
+          <>
+            {/* 左側：アバタープレースホルダー */}
+            <div className="w-1/2 relative border-r border-gray-200 bg-gradient-to-b from-gray-900 to-gray-800 flex items-center justify-center">
+              <div className="text-center">
+                <div className="w-24 h-24 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-12 h-12 text-gray-600"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                    />
+                  </svg>
+                </div>
+                <p className="text-gray-400 text-sm">AIアバター待機中</p>
+              </div>
             </div>
-          </div>
+
+            {/* 右側：セッション開始画面 */}
+            <div className="w-1/2 flex items-center justify-center p-8 bg-white">
+              <div className="text-center max-w-md">
+                <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                  新卒向けキャリア相談を始めましょう
+                </h2>
+                <p className="text-gray-600 mb-8">
+                  AIアバターがあなたのキャリア相談に対応し、あらゆる業界から最適な求人をご紹介します
+                </p>
+                <button
+                  onClick={startSession}
+                  disabled={isConnecting}
+                  className="px-8 py-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed font-medium text-lg transition-colors"
+                >
+                  {isConnecting ? '接続中...' : 'キャリア相談を開始する'}
+                </button>
+              </div>
+            </div>
+          </>
         ) : (
           <>
-            {/* 左側：アバター表示 */}
-            <div className="w-1/2 relative bg-gray-900 border-r border-gray-200">
-              <VideoPanel
-                isActive={isSessionActive}
-                showSubtitles={showSubtitles}
-                subtitle={currentSubtitle}
-                livekitClient={livekitClientRef.current}
-              />
-
-              {/* 字幕トグル */}
-              <button
-                onClick={() => setShowSubtitles(!showSubtitles)}
-                className={`absolute top-4 right-4 p-2 rounded-lg transition-colors ${
-                  showSubtitles
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-                }`}
-              >
-                <Subtitles className="w-5 h-5" />
-              </button>
+            {/* 左側：アバター表示 - プレースホルダー */}
+            <div className="w-1/2 relative border-r border-gray-200">
+              {/* 共通VideoPanelが背後に表示される */}
             </div>
 
             {/* 右側：インタラクション部分 */}
@@ -893,5 +929,45 @@ export default function ConversationView() {
     return () => window.removeEventListener('resize', checkScreenSize);
   }, []);
 
-  return isMobile ? <MobileLayout /> : <DesktopLayout />;
+  // VideoPanelを共通化して、レイアウト切り替えで再マウントされないようにする
+  return (
+    <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
+      {/* 共通のVideoPanel - レスポンシブクリップで表示エリアを制御 */}
+      <div className={`fixed z-20 bg-black ${
+        isMobile
+          ? 'top-16 left-0 right-0' // モバイル: ヘッダー下から
+          : 'top-20 left-0 w-1/2'   // PC: ヘッダー下から左半分
+      }`} style={{
+        height: isMobile ? 'calc(50vh - 4rem)' : 'calc(100vh - 5rem)'
+      }}>
+        <VideoPanel
+          isActive={isSessionActive}
+          showSubtitles={showSubtitles}
+          subtitle={currentSubtitle}
+          livekitClient={livekitClientRef.current}
+        />
+
+        {/* 字幕トグルボタン */}
+        {isSessionActive && (
+          <div className="absolute top-4 right-4 z-30">
+            <button
+              onClick={() => setShowSubtitles(!showSubtitles)}
+              className={`p-2 rounded-lg transition-colors ${
+                showSubtitles
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+              }`}
+            >
+              <Subtitles className="w-5 h-5" />
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* レスポンシブレイアウト */}
+      <div className="relative z-10 h-full">
+        {isMobile ? <MobileLayout /> : <DesktopLayout />}
+      </div>
+    </div>
+  );
 }
