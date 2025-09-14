@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeyGen Avatars Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            border-bottom: 2px solid #007bff;
+            padding-bottom: 10px;
+        }
+        .avatar-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .avatar-card {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 15px;
+            background: #fafafa;
+        }
+        .avatar-card.interactive {
+            background: #e8f4fd;
+            border-color: #007bff;
+        }
+        .avatar-card.rumi {
+            background: #ffe8e8;
+            border-color: #ff4444;
+            border-width: 2px;
+        }
+        .avatar-id {
+            font-family: monospace;
+            background: #f0f0f0;
+            padding: 5px;
+            border-radius: 4px;
+            word-break: break-all;
+            margin: 5px 0;
+        }
+        .tag {
+            display: inline-block;
+            background: #007bff;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin: 2px;
+        }
+        .tag.rumi {
+            background: #ff4444;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            background: #fee;
+            color: #c00;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background: #efe;
+            color: #080;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HeyGen Avatars Test</h1>
+        <button onclick="fetchAvatars()">アバターリストを取得</button>
+
+        <div id="loading" class="loading" style="display: none;">
+            読み込み中...
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+        <div id="success" class="success" style="display: none;"></div>
+
+        <div id="summary" style="margin-top: 20px;"></div>
+        <div id="avatars" class="avatar-grid"></div>
+    </div>
+
+    <script>
+        async function fetchAvatars() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const success = document.getElementById('success');
+            const summary = document.getElementById('summary');
+            const avatarsDiv = document.getElementById('avatars');
+
+            loading.style.display = 'block';
+            error.style.display = 'none';
+            success.style.display = 'none';
+            avatarsDiv.innerHTML = '';
+            summary.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/heygen/avatars');
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch avatars');
+                }
+
+                console.log('Avatars data:', data);
+
+                // サマリー表示
+                summary.innerHTML = `
+                    <h2>サマリー</h2>
+                    <p>総アバター数: <strong>${data.totalAvatars}</strong></p>
+                    <p>インタラクティブアバター数: <strong>${data.interactiveAvatars.length}</strong></p>
+                    ${data.rumiAvatar ? `<p class="success">✅ Rumiアバターが見つかりました！</p>` : '<p class="error">❌ Rumiアバターが見つかりませんでした</p>'}
+                `;
+
+                // Rumiアバターがある場合は詳細表示
+                if (data.rumiAvatar) {
+                    avatarsDiv.innerHTML += `
+                        <div class="avatar-card rumi">
+                            <h3>🎯 Rumi Avatar Found!</h3>
+                            <p><strong>Name:</strong> ${data.rumiAvatar.name || data.rumiAvatar.avatar_name}</p>
+                            <p><strong>ID:</strong></p>
+                            <div class="avatar-id">${data.rumiAvatar.avatar_id}</div>
+                            <p><strong>Type:</strong> ${data.rumiAvatar.type || 'N/A'}</p>
+                            <p><strong>Interactive:</strong> ${data.rumiAvatar.is_interactive ? '✅' : '❌'}</p>
+                            <span class="tag rumi">RUMI</span>
+                        </div>
+                    `;
+                }
+
+                // 全アバター表示
+                data.allAvatars.forEach(avatar => {
+                    const isRumi = avatar.name?.toLowerCase().includes('rumi') ||
+                                  avatar.avatar_name?.toLowerCase().includes('rumi');
+                    const isInteractive = avatar.is_interactive || avatar.type === 'interactive';
+
+                    avatarsDiv.innerHTML += `
+                        <div class="avatar-card ${isInteractive ? 'interactive' : ''} ${isRumi ? 'rumi' : ''}">
+                            <h3>${avatar.name || avatar.avatar_name || 'Unnamed Avatar'}</h3>
+                            <p><strong>ID:</strong></p>
+                            <div class="avatar-id">${avatar.avatar_id}</div>
+                            <p><strong>Type:</strong> ${avatar.type || 'N/A'}</p>
+                            <p><strong>Interactive:</strong> ${isInteractive ? '✅' : '❌'}</p>
+                            ${avatar.preview_url ? `<p><strong>Preview:</strong> <a href="${avatar.preview_url}" target="_blank">View</a></p>` : ''}
+                            <div>
+                                ${isInteractive ? '<span class="tag">Interactive</span>' : ''}
+                                ${isRumi ? '<span class="tag rumi">RUMI</span>' : ''}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                success.textContent = 'アバターリストを取得しました';
+                success.style.display = 'block';
+
+            } catch (err) {
+                console.error('Error fetching avatars:', err);
+                error.textContent = `エラー: ${err.message}`;
+                error.style.display = 'block';
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        // ページ読み込み時に自動実行
+        window.addEventListener('load', () => {
+            fetchAvatars();
+        });
+    </script>
+</body>
+</html>

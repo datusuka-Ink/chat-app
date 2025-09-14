@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(pnpm run lint:*)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(pnpm add:*)",
+      "WebFetch(domain:docs.heygen.com)"
     ],
     "deny": [],
     "ask": []
