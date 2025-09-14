@@ -38,6 +38,8 @@ interface DesktopLayoutProps {
   setInteractionMode: (mode: InteractionMode) => void;
   setUnreadJobsCount: (count: number) => void;
   setViewedJobIds: (ids: Set<string>) => void;
+  permissionsReady?: boolean;
+  showPermissionSetup?: () => void;
 }
 
 const DesktopLayout: React.FC<DesktopLayoutProps> = ({

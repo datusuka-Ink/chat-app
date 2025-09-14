@@ -38,6 +38,8 @@ interface MobileLayoutProps {
   setInteractionMode: (mode: InteractionMode) => void;
   setUnreadJobsCount: (count: number) => void;
   setViewedJobIds: (ids: Set<string>) => void;
+  permissionsReady?: boolean;
+  showPermissionSetup?: () => void;
 }
 
 const MobileLayout: React.FC<MobileLayoutProps> = ({

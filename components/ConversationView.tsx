@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Subtitles } from 'lucide-react';
 import VideoPanel from './VideoPanel';
 import MobileLayout from './MobileLayout';
 import DesktopLayout from './DesktopLayout';
+import MicrophonePermissionGuide from './MicrophonePermissionGuide';
+import PermissionSetupGuide from './PermissionSetupGuide';
 import { AudioRecorder } from '@/lib/audio-recorder';
 import { LiveKitClient } from '@/lib/livekit-client';
 import type { JobItem } from '@/lib/tools/search-jobs';
@@ -34,6 +36,10 @@ export default function ConversationView() {
   const [unreadJobsCount, setUnreadJobsCount] = useState(0);
   const [viewedJobIds, setViewedJobIds] = useState<Set<string>>(new Set());
   const [currentTranscript, setCurrentTranscript] = useState('');
+  const [audioBlocked, setAudioBlocked] = useState(false);
+  const [showMicGuide, setShowMicGuide] = useState(false);
+  const [showPermissionSetup, setShowPermissionSetup] = useState(false);
+  const [permissionsReady, setPermissionsReady] = useState(false);
 
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const livekitClientRef = useRef<LiveKitClient | null>(null);
@@ -41,6 +47,11 @@ export default function ConversationView() {
 
   // セッション開始
   const startSession = async () => {
+    // 権限が未取得の場合はセットアップを表示
+    if (!permissionsReady) {
+      setShowPermissionSetup(true);
+      return;
+    }
     try {
       setIsConnecting(true);
 
@@ -108,6 +119,18 @@ export default function ConversationView() {
       // LiveKit接続
       livekitClientRef.current = new LiveKitClient();
       console.log('Attempting LiveKit connection...');
+
+      // 音声再生状態の監視を設定
+      livekitClientRef.current.onAudioPlaybackStatusChanged((canPlayback) => {
+        if (!canPlayback) {
+          console.warn('Audio playback blocked - user interaction required');
+          setAudioBlocked(true);
+        } else {
+          console.log('Audio playback enabled');
+          setAudioBlocked(false);
+        }
+      });
+
       await livekitClientRef.current.connect(livekitUrl, accessToken);
       console.log('LiveKit connected successfully');
 
@@ -234,7 +257,8 @@ export default function ConversationView() {
         setIsRecording(true);
         setCurrentTranscript('録音中...');
       } else {
-        alert('マイクへのアクセスが許可されていません。');
+        // マイク許可ガイドを表示
+        setShowMicGuide(true);
       }
     }
   };
@@ -364,6 +388,20 @@ export default function ConversationView() {
     }
   };
 
+  // 音声を有効化する関数（ユーザーインタラクション時に呼び出す）
+  const enableAudio = async () => {
+    if (livekitClientRef.current) {
+      try {
+        await livekitClientRef.current.startAudio();
+        setAudioBlocked(false);
+        console.log('Audio enabled successfully');
+      } catch (error) {
+        console.error('Failed to enable audio:', error);
+        alert('音声の有効化に失敗しました。');
+      }
+    }
+  };
+
   // レスポンシブレイアウトの選択
   // Hydration errorを防ぐため、クライアント側でのみ判定
   const [isMobile, setIsMobile] = useState<boolean | null>(null);
@@ -372,6 +410,31 @@ export default function ConversationView() {
     // クライアント側でのみ実行
     setIsMobile(window.innerWidth < 1024);
   }, []);
+
+  // 初回訪問時に権限セットアップを表示
+  useEffect(() => {
+    // localStorage で権限取得済みかチェック
+    const permissionsGranted = localStorage.getItem('permissionsGranted');
+    if (!permissionsGranted && !isSessionActive) {
+      // 初回訪問または権限未取得の場合
+      setShowPermissionSetup(true);
+    } else {
+      setPermissionsReady(true);
+    }
+  }, [isSessionActive]);
+
+  // 権限セットアップ完了時の処理
+  const handlePermissionSetupComplete = () => {
+    localStorage.setItem('permissionsGranted', 'true');
+    setPermissionsReady(true);
+    setShowPermissionSetup(false);
+  };
+
+  // 権限セットアップをスキップ
+  const handlePermissionSetupSkip = () => {
+    setShowPermissionSetup(false);
+    // スキップした場合は、セッション開始時に個別に権限を要求
+  };
 
   // レイアウトコンポーネントに渡すprops
   const layoutProps = {
@@ -396,6 +459,25 @@ export default function ConversationView() {
     setInteractionMode,
     setUnreadJobsCount,
     setViewedJobIds,
+    permissionsReady,
+    showPermissionSetup: () => setShowPermissionSetup(true),
+  };
+
+  // マイクアクセスの再リクエスト
+  const retryMicrophoneAccess = async () => {
+    if (!audioRecorderRef.current) return;
+
+    const success = await audioRecorderRef.current.startRecording();
+    if (success) {
+      // 成功したらすぐに停止（テスト目的）
+      await audioRecorderRef.current.stopRecording();
+      setShowMicGuide(false);
+      // 再度録音ボタンを押してもらう
+      alert('マイクの許可が確認できました！録音ボタンを押して会話を始めてください。');
+    } else {
+      // まだブロックされている
+      console.log('Microphone access still blocked');
+    }
   };
 
   // VideoPanelを共通化して、レイアウト切り替えで再マウントされないようにする
@@ -438,12 +520,65 @@ export default function ConversationView() {
             </button>
           </div>
         )}
+
+        {/* 音声ブロック警告 */}
+        {audioBlocked && isSessionActive && (
+          <div className="absolute top-0 left-0 right-0 z-40 bg-yellow-500 text-white p-3 md:p-4">
+            <div className="max-w-6xl mx-auto flex items-center justify-between">
+              <div className="flex items-center">
+                <svg
+                  className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3 flex-shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                  />
+                </svg>
+                <div>
+                  <span className="text-sm md:text-base font-medium">
+                    音声がブロックされています
+                  </span>
+                  <span className="hidden md:inline text-sm ml-2">
+                    ブラウザの設定により音声再生が制限されています
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={enableAudio}
+                className="bg-white text-yellow-600 font-bold px-3 py-1 md:px-5 md:py-2 rounded text-sm md:text-base hover:bg-yellow-50 transition-colors shadow-sm"
+              >
+                音声を有効にする
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* レスポンシブレイアウト */}
       <div className="relative z-10 h-full">
         {isMobile ? <MobileLayout {...layoutProps} /> : <DesktopLayout {...layoutProps} />}
       </div>
+
+      {/* マイク許可ガイド */}
+      {showMicGuide && (
+        <MicrophonePermissionGuide
+          onRetry={retryMicrophoneAccess}
+          onClose={() => setShowMicGuide(false)}
+        />
+      )}
+
+      {/* 初期権限セットアップ */}
+      {showPermissionSetup && (
+        <PermissionSetupGuide
+          onComplete={handlePermissionSetupComplete}
+          onSkip={handlePermissionSetupSkip}
+        />
+      )}
     </div>
   );
 }

@@ -16,7 +16,7 @@ export class LiveKitClient {
   private audioElement: HTMLAudioElement | null = null;
   private attachedVideoTrack: RemoteTrack | null = null;
   private pendingVideoTrack: RemoteTrack | null = null;
-  private audioPlaybackEnabled = false;
+  private audioPlaybackStatusCallback?: (canPlayback: boolean) => void;
 
   constructor() {
     this.room = new Room({
@@ -30,11 +30,35 @@ export class LiveKitClient {
 
   // 音声再生を有効化（ユーザーインタラクション後に呼び出す）
   enableAudioPlayback(): void {
-    this.audioPlaybackEnabled = true;
     if (this.audioElement) {
       this.audioElement.play().catch(e => {
         console.warn('Failed to enable audio playback:', e);
       });
+    }
+  }
+
+  // 音声再生状態の変更を監視するコールバックを設定
+  onAudioPlaybackStatusChanged(callback: (canPlayback: boolean) => void): void {
+    this.audioPlaybackStatusCallback = callback;
+  }
+
+  // 音声再生が可能かどうかを確認
+  get canPlaybackAudio(): boolean {
+    return this.room?.canPlaybackAudio ?? false;
+  }
+
+  // 音声を開始（ユーザーインタラクション内で呼び出す必要がある）
+  async startAudio(): Promise<void> {
+    if (!this.room) {
+      throw new Error('Room not initialized');
+    }
+
+    try {
+      await this.room.startAudio();
+      console.log('Audio playback started successfully');
+    } catch (error) {
+      console.error('Failed to start audio:', error);
+      throw error;
     }
   }
 
@@ -85,6 +109,21 @@ export class LiveKitClient {
 
   private setupEventListeners(): void {
     if (!this.room) return;
+
+    // 音声再生状態の変更を監視
+    this.room.on(RoomEvent.AudioPlaybackStatusChanged, () => {
+      const canPlayback = this.room?.canPlaybackAudio ?? false;
+      console.log('Audio playback status changed:', canPlayback);
+
+      if (this.audioPlaybackStatusCallback) {
+        this.audioPlaybackStatusCallback(canPlayback);
+      }
+
+      // 音声が再生できない場合の警告
+      if (!canPlayback) {
+        console.warn('Audio playback is blocked. User interaction required.');
+      }
+    });
 
     // 参加者が追加された時
     this.room.on(RoomEvent.ParticipantConnected, (participant) => {
@@ -145,23 +184,8 @@ export class LiveKitClient {
           track.attach(this.audioElement);
           console.log('Audio track attached');
 
-          // スマホブラウザでの自動再生を確実にする
-          // audioPlaybackEnabledフラグがtrueの場合、または初回は再生を試みる
-          if (this.audioPlaybackEnabled || !this.audioPlaybackEnabled) {
-            const playPromise = this.audioElement.play();
-            if (playPromise !== undefined) {
-              playPromise
-                .then(() => {
-                  console.log('Audio playback started successfully');
-                  this.audioPlaybackEnabled = true;
-                })
-                .catch((error) => {
-                  console.warn('Audio autoplay was prevented:', error);
-                  // ユーザーインタラクション後に再生を試みる
-                  console.log('Click anywhere to enable audio');
-                });
-            }
-          }
+          // 音声再生を試みる（LiveKitが自動的に処理）
+          // AudioPlaybackStatusChangedイベントで結果を通知
         }
       }
     );

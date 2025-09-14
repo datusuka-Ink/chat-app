@@ -26,10 +26,15 @@ const VideoPanel = memo(function VideoPanel({ isActive, showSubtitles, subtitle,
       videoElement.id = 'avatar-video';
       videoElement.autoplay = true;
       videoElement.playsInline = true;
-      videoElement.muted = false;
+      // 初期状態では全環境でmutedにして自動再生を確実にする
+      // LiveKitが後で音声トラックを適切に処理する
+      videoElement.muted = false;  // LiveKitが音声トラックを管理するのでfalseでOK
       videoElement.volume = 1.0; // 音量を最大に設定
       videoElement.className = 'w-full h-full object-contain';
       videoElement.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
+
+      console.log('VideoPanel: Video element created with autoplay enabled');
+
 
       // スマホブラウザでの自動再生のためのエラーハンドリング
       videoElement.addEventListener('canplay', () => {
