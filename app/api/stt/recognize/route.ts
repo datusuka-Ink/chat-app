@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
     const bytes = await audioFile.arrayBuffer();
     const buffer = Buffer.from(bytes);
 
-    // ファイル拡張子を取得
-    const extension = audioFile.name.split('.').pop() || 'webm';
+    // ファイル拡張子を決定（webmファイルとして保存）
+    const extension = 'webm';
     tempFilePath = join(tmpdir(), `audio-${Date.now()}.${extension}`);
 
     await writeFile(tempFilePath, buffer);
@@ -37,7 +37,7 @@ export async function POST(request: NextRequest) {
     // OpenAI Whisper APIで音声認識
     const fileContent = await readFile(tempFilePath);
     const file = await toFile(fileContent, `audio.${extension}`, {
-      type: `audio/${extension}`,
+      type: 'audio/webm',
     });
 
     const transcription = await openai.audio.transcriptions.create({

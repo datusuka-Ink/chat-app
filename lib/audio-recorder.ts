@@ -153,18 +153,20 @@ export class AudioRecorder {
 
   private getSupportedMimeType(): string {
     const types = [
-      'audio/webm;codecs=opus',
       'audio/webm',
+      'audio/webm;codecs=opus',
       'audio/ogg;codecs=opus',
       'audio/mp4',
     ];
 
     for (const type of types) {
       if (MediaRecorder.isTypeSupported(type)) {
+        console.log('Using MIME type:', type);
         return type;
       }
     }
 
+    console.log('Fallback to audio/webm');
     return 'audio/webm';
   }
 

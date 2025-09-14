@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef } from 'react';
-import { Mic, PhoneOff, Settings, Subtitles, Send, Volume2, MessageSquare, Headphones, Briefcase } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Settings, Subtitles, Send, Volume2, MessageSquare, Headphones, Briefcase, Loader2 } from 'lucide-react';
 import VideoPanel from './VideoPanel';
 import ChatPanel from './ChatPanel';
 import JobCard from './JobCard';
@@ -23,6 +23,7 @@ export default function ConversationView() {
   const [isSessionActive, setIsSessionActive] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showSubtitles, setShowSubtitles] = useState(false);
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
@@ -31,6 +32,7 @@ export default function ConversationView() {
   const [interactionMode, setInteractionMode] = useState<InteractionMode>('voice');
   const [unreadJobsCount, setUnreadJobsCount] = useState(0);
   const [viewedJobIds, setViewedJobIds] = useState<Set<string>>(new Set());
+  const [currentTranscript, setCurrentTranscript] = useState('');
 
   const audioRecorderRef = useRef<AudioRecorder | null>(null);
   const livekitClientRef = useRef<LiveKitClient | null>(null);
@@ -161,51 +163,46 @@ export default function ConversationView() {
     }
   };
 
-  // PTT録音開始/停止（マウスダウン/アップ用）
-  const startRecording = async () => {
-    if (!audioRecorderRef.current || isRecording) return;
+  // 録音トグル（押すと開始/停止）
+  const toggleRecording = async () => {
+    if (!audioRecorderRef.current || isProcessing) return;
 
-    const success = await audioRecorderRef.current.startRecording();
-    if (success) {
-      setIsRecording(true);
+    if (isRecording) {
+      // 録音停止
+      setIsProcessing(true);
+      const audioBlob = await audioRecorderRef.current.stopRecording();
+      setIsRecording(false);
+      setAudioLevel(0);
+      setCurrentTranscript('');
+
+      if (audioBlob) {
+        await processAudioInput(audioBlob);
+      }
+      setIsProcessing(false);
     } else {
-      alert('マイクへのアクセスが許可されていません。');
-    }
-  };
-
-  const stopRecording = async () => {
-    if (!audioRecorderRef.current || !isRecording) return;
-
-    const audioBlob = await audioRecorderRef.current.stopRecording();
-    setIsRecording(false);
-    setAudioLevel(0);
-
-    if (audioBlob) {
-      // 処理中メッセージを追加
-      const processingMessage: Message = {
-        id: Date.now().toString(),
-        role: 'system',
-        content: '音声を認識中...',
-        timestamp: new Date(),
-      };
-      setMessages(prev => [...prev, processingMessage]);
-
-      await processAudioInput(audioBlob);
-
-      // 処理中メッセージを削除
-      setMessages(prev => prev.filter(m => m.id !== processingMessage.id));
+      // 録音開始
+      const success = await audioRecorderRef.current.startRecording();
+      if (success) {
+        setIsRecording(true);
+        setCurrentTranscript('録音中...');
+      } else {
+        alert('マイクへのアクセスが許可されていません。');
+      }
     }
   };
 
   // 音声入力処理
   const processAudioInput = async (audioBlob: Blob) => {
     try {
+      setCurrentTranscript('音声を認識中...');
+
       // ファイルサイズチェック
       const sizeMB = audioBlob.size / (1024 * 1024);
       console.log(`Audio size: ${sizeMB.toFixed(2)} MB`);
 
       if (sizeMB < 0.01) {
-        alert('録音が短すぎます。もう少し長く話してください。');
+        setCurrentTranscript('録音が短すぎます');
+        setTimeout(() => setCurrentTranscript(''), 2000);
         return;
       }
 
@@ -228,9 +225,12 @@ export default function ConversationView() {
       const { text } = await sttResponse.json();
 
       if (!text || text.trim().length === 0) {
-        alert('音声が認識できませんでした。もう一度お試しください。');
+        setCurrentTranscript('音声が認識できませんでした');
+        setTimeout(() => setCurrentTranscript(''), 2000);
         return;
       }
+
+      setCurrentTranscript('');
 
       // ユーザーメッセージ追加
       const userMessage: Message = {
@@ -246,7 +246,8 @@ export default function ConversationView() {
 
     } catch (error) {
       console.error('Failed to process audio:', error);
-      alert('音声認識に失敗しました。ネットワーク接続を確認してください。');
+      setCurrentTranscript('音声認識に失敗しました');
+      setTimeout(() => setCurrentTranscript(''), 2000);
     }
   };
 
@@ -432,72 +433,75 @@ export default function ConversationView() {
               {/* コンテンツエリア */}
               <div className="flex-1 overflow-hidden">
                 {interactionMode === 'voice' ? (
-                  /* 会話モード */
-                  <div className="h-full flex flex-col">
-                    {/* 最新のメッセージ表示 */}
-                    <div className="flex-1 overflow-y-auto p-4 space-y-2">
-                      {messages.slice(-3).map((message) => (
-                        <div
-                          key={message.id}
-                          className={`p-3 rounded-lg ${
-                            message.role === 'user'
-                              ? 'bg-blue-50 text-blue-900 ml-auto max-w-[80%]'
-                              : message.role === 'assistant'
-                              ? 'bg-gray-100 text-gray-900 mr-auto max-w-[80%]'
-                              : 'bg-yellow-50 text-yellow-900 text-center text-sm'
-                          }`}
-                        >
-                          {message.content}
+                  /* 会話モード - シンプルで洗練されたUI */
+                  <div className="h-full flex flex-col justify-center items-center p-6 bg-gradient-to-b from-white to-gray-50">
+                    {/* 現在の状態表示 */}
+                    <div className="mb-8 text-center">
+                      {currentTranscript && (
+                        <div className="bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-200 animate-fade-in">
+                          <p className="text-gray-700">{currentTranscript}</p>
                         </div>
-                      ))}
+                      )}
+                      {!currentTranscript && !isRecording && (
+                        <p className="text-gray-500 text-sm">マイクボタンをタップして話しかけてください</p>
+                      )}
                     </div>
 
-                    {/* Push-to-Talk ボタン */}
-                    <div className="p-6 border-t bg-gray-50">
-                      {/* 音声レベルメーター */}
+                    {/* 録音ボタン - 中央に大きく配置 */}
+                    <div className="relative">
+                      {/* 音声レベル表示（録音中のみ） */}
                       {isRecording && (
-                        <div className="mb-4 bg-white rounded-lg p-3 border-2 border-red-200">
-                          <div className="flex items-center space-x-2">
-                            <Volume2 className="w-4 h-4 text-gray-600" />
-                            <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                              <div
-                                className={`h-2 rounded-full transition-all duration-100 ${
-                                  audioLevel > 60 ? 'bg-green-500' : audioLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
-                                }`}
-                                style={{ width: `${audioLevel}%` }}
-                              />
-                            </div>
-                            <span className="text-xs text-gray-500">{Math.round(audioLevel)}%</span>
-                          </div>
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <div
+                            className="rounded-full bg-blue-500 opacity-20 animate-pulse"
+                            style={{
+                              width: `${120 + audioLevel * 1.5}px`,
+                              height: `${120 + audioLevel * 1.5}px`,
+                            }}
+                          />
                         </div>
                       )}
 
-                      <div className="flex flex-col items-center">
-                        <button
-                          onMouseDown={startRecording}
-                          onMouseUp={stopRecording}
-                          onTouchStart={startRecording}
-                          onTouchEnd={stopRecording}
-                          disabled={!isSessionActive}
-                          className={`relative p-8 rounded-full transition-all transform ${
-                            isRecording
-                              ? 'bg-red-500 hover:bg-red-600 scale-110 animate-pulse'
-                              : 'bg-blue-500 hover:bg-blue-600 hover:scale-105'
-                          } text-white shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed`}
-                        >
-                          {isRecording ? (
-                            <>
-                              <Mic className="w-10 h-10" />
-                              <span className="absolute -top-2 -right-2 w-4 h-4 bg-red-600 rounded-full animate-ping"></span>
-                            </>
-                          ) : (
-                            <Mic className="w-10 h-10" />
-                          )}
-                        </button>
-                        <span className="mt-3 text-sm text-gray-600">
-                          {isRecording ? '話しています...' : '押しながら話す'}
-                        </span>
-                      </div>
+                      <button
+                        onClick={toggleRecording}
+                        disabled={!isSessionActive || isProcessing}
+                        className={`relative z-10 p-8 rounded-full transition-all transform ${
+                          isRecording
+                            ? 'bg-red-500 hover:bg-red-600 scale-110'
+                            : isProcessing
+                            ? 'bg-gray-400 cursor-not-allowed'
+                            : 'bg-blue-500 hover:bg-blue-600 hover:scale-105'
+                        } text-white shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                      >
+                        {isProcessing ? (
+                          <Loader2 className="w-12 h-12 animate-spin" />
+                        ) : isRecording ? (
+                          <MicOff className="w-12 h-12" />
+                        ) : (
+                          <Mic className="w-12 h-12" />
+                        )}
+                      </button>
+                    </div>
+
+                    {/* 状態テキスト */}
+                    <div className="mt-6 text-center">
+                      <p className="text-sm font-medium text-gray-700">
+                        {isProcessing ? '処理中...' : isRecording ? '録音中（タップで停止）' : 'タップして話す'}
+                      </p>
+                      {isRecording && (
+                        <div className="mt-3 flex items-center justify-center space-x-2">
+                          <Volume2 className="w-4 h-4 text-gray-500" />
+                          <div className="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-100 ${
+                                audioLevel > 60 ? 'bg-green-500' : audioLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
+                              }`}
+                              style={{ width: `${audioLevel}%` }}
+                            />
+                          </div>
+                          <span className="text-xs text-gray-500">{Math.round(audioLevel)}%</span>
+                        </div>
+                      )}
                     </div>
                   </div>
                 ) : interactionMode === 'chat' ? (
