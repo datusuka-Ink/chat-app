@@ -84,7 +84,9 @@ export class AudioRecorder {
       };
 
       // 録音停止
-      this.mediaRecorder.stop();
+      if (this.mediaRecorder) {
+        this.mediaRecorder.stop();
+      }
       this.isRecording = false;
 
       // 音声レベル監視停止
