@@ -27,8 +27,16 @@ const VideoPanel = memo(function VideoPanel({ isActive, showSubtitles, subtitle,
       videoElement.autoplay = true;
       videoElement.playsInline = true;
       videoElement.muted = false;
+      videoElement.volume = 1.0; // 音量を最大に設定
       videoElement.className = 'w-full h-full object-contain';
       videoElement.style.cssText = 'width: 100%; height: 100%; object-fit: contain;';
+
+      // スマホブラウザでの自動再生のためのエラーハンドリング
+      videoElement.addEventListener('canplay', () => {
+        videoElement.play().catch(e => {
+          console.warn('Video autoplay was prevented:', e);
+        });
+      });
 
       // コンテナに追加
       containerRef.current.appendChild(videoElement);

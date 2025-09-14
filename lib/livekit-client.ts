@@ -16,6 +16,7 @@ export class LiveKitClient {
   private audioElement: HTMLAudioElement | null = null;
   private attachedVideoTrack: RemoteTrack | null = null;
   private pendingVideoTrack: RemoteTrack | null = null;
+  private audioPlaybackEnabled = false;
 
   constructor() {
     this.room = new Room({
@@ -25,6 +26,16 @@ export class LiveKitClient {
         resolution: VideoPresets.h720.resolution,
       },
     });
+  }
+
+  // 音声再生を有効化（ユーザーインタラクション後に呼び出す）
+  enableAudioPlayback(): void {
+    this.audioPlaybackEnabled = true;
+    if (this.audioElement) {
+      this.audioElement.play().catch(e => {
+        console.warn('Failed to enable audio playback:', e);
+      });
+    }
   }
 
   setVideoElement(element: HTMLVideoElement): void {
@@ -126,11 +137,31 @@ export class LiveKitClient {
           if (!this.audioElement) {
             this.audioElement = document.createElement('audio');
             this.audioElement.autoplay = true;
+            this.audioElement.muted = false;
+            this.audioElement.volume = 1.0;
             this.audioElement.style.display = 'none';
             document.body.appendChild(this.audioElement);
           }
           track.attach(this.audioElement);
           console.log('Audio track attached');
+
+          // スマホブラウザでの自動再生を確実にする
+          // audioPlaybackEnabledフラグがtrueの場合、または初回は再生を試みる
+          if (this.audioPlaybackEnabled || !this.audioPlaybackEnabled) {
+            const playPromise = this.audioElement.play();
+            if (playPromise !== undefined) {
+              playPromise
+                .then(() => {
+                  console.log('Audio playback started successfully');
+                  this.audioPlaybackEnabled = true;
+                })
+                .catch((error) => {
+                  console.warn('Audio autoplay was prevented:', error);
+                  // ユーザーインタラクション後に再生を試みる
+                  console.log('Click anywhere to enable audio');
+                });
+            }
+          }
         }
       }
     );
