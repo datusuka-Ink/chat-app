@@ -43,16 +43,15 @@ export default function ConversationView() {
     try {
       setIsConnecting(true);
 
-      // 保存されたアバターIDを取得（デフォルトは指定しない）
-      const savedAvatarId = localStorage.getItem('selectedAvatarId');
+      // Monicaアバターを固定で使用（アジア系女性アバター）
+      const savedAvatarId = 'June_HR_public';
 
       // HeyGen セッション作成
+      console.log('Using avatar ID:', savedAvatarId);
       const sessionResponse = await fetch('/api/heygen/session', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(
-          savedAvatarId ? { avatarId: savedAvatarId } : {}
-        ),
+        body: JSON.stringify({ avatarId: savedAvatarId }),
       });
 
       if (!sessionResponse.ok) {
@@ -102,7 +101,7 @@ export default function ConversationView() {
       await new Promise(resolve => setTimeout(resolve, 2000));
 
       // 初回挨拶
-      const greetingMessage = 'こんにちは！新卒キャリアエージェントAIです。今日はキャリア相談をしながら、最後にあなたに合った求人を紹介させていただきます。まずは大学・学部や専攻、就活の進捗状況を教えていただけますか？';
+      const greetingMessage = 'こんにちは！新卒キャリアエージェントのささきです。今日はキャリア相談をしながら、最後にあなたに合った求人を紹介させていただきます。まずは大学・学部や専攻、就活の進捗状況を教えていただけますか？';
 
       setMessages([{
         id: Date.now().toString(),
@@ -399,22 +398,20 @@ export default function ConversationView() {
               <div className="flex border-b bg-gray-50">
                 <button
                   onClick={() => setInteractionMode('voice')}
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    interactionMode === 'voice'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${interactionMode === 'voice'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <Headphones className="w-4 h-4" />
                   会話モード
                 </button>
                 <button
                   onClick={() => setInteractionMode('chat')}
-                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    interactionMode === 'chat'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${interactionMode === 'chat'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <MessageSquare className="w-4 h-4" />
                   チャット
@@ -429,11 +426,10 @@ export default function ConversationView() {
                       .flatMap(m => m.jobs || []);
                     setViewedJobIds(new Set(allJobs.map(job => job.id)));
                   }}
-                  className={`relative flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    interactionMode === 'jobs'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`relative flex-1 py-3 px-4 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${interactionMode === 'jobs'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <Briefcase className="w-4 h-4" />
                   求人情報
@@ -485,13 +481,12 @@ export default function ConversationView() {
                       <button
                         onClick={toggleRecording}
                         disabled={!isSessionActive || isProcessing}
-                        className={`relative z-10 p-8 rounded-full transition-all transform ${
-                          isRecording
-                            ? 'bg-red-500 hover:bg-red-600 scale-110'
-                            : isProcessing
+                        className={`relative z-10 p-8 rounded-full transition-all transform ${isRecording
+                          ? 'bg-red-500 hover:bg-red-600 scale-110'
+                          : isProcessing
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-blue-500 hover:bg-blue-600 hover:scale-105'
-                        } text-white shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                          } text-white shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed`}
                       >
                         {isProcessing ? (
                           <Loader2 className="w-12 h-12 animate-spin" />
@@ -513,9 +508,8 @@ export default function ConversationView() {
                           <Volume2 className="w-4 h-4 text-gray-500" />
                           <div className="w-32 bg-gray-200 rounded-full h-2 overflow-hidden">
                             <div
-                              className={`h-2 rounded-full transition-all duration-100 ${
-                                audioLevel > 60 ? 'bg-green-500' : audioLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}
+                              className={`h-2 rounded-full transition-all duration-100 ${audioLevel > 60 ? 'bg-green-500' : audioLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
                               style={{ width: `${audioLevel}%` }}
                             />
                           </div>
@@ -544,7 +538,7 @@ export default function ConversationView() {
                           onChange={(e) => setInputText(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
                           placeholder="メッセージを入力..."
-                          className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 px-4 py-2 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
                         />
                         <button
                           onClick={handleTextSubmit}
@@ -716,22 +710,20 @@ export default function ConversationView() {
               <div className="flex border-b bg-gray-50">
                 <button
                   onClick={() => setInteractionMode('voice')}
-                  className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    interactionMode === 'voice'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${interactionMode === 'voice'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <Headphones className="w-4 h-4" />
                   会話モード
                 </button>
                 <button
                   onClick={() => setInteractionMode('chat')}
-                  className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    interactionMode === 'chat'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${interactionMode === 'chat'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <MessageSquare className="w-4 h-4" />
                   チャット
@@ -745,11 +737,10 @@ export default function ConversationView() {
                       .flatMap(m => m.jobs || []);
                     setViewedJobIds(new Set(allJobs.map(job => job.id)));
                   }}
-                  className={`relative flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${
-                    interactionMode === 'jobs'
-                      ? 'bg-white text-blue-600 border-b-2 border-blue-600'
-                      : 'text-gray-600 hover:text-gray-900'
-                  }`}
+                  className={`relative flex-1 py-4 px-6 text-sm font-medium transition-colors flex items-center justify-center gap-2 ${interactionMode === 'jobs'
+                    ? 'bg-white text-blue-600 border-b-2 border-blue-600'
+                    : 'text-gray-600 hover:text-gray-900'
+                    }`}
                 >
                   <Briefcase className="w-4 h-4" />
                   求人情報
@@ -793,13 +784,12 @@ export default function ConversationView() {
                       <button
                         onClick={toggleRecording}
                         disabled={!isSessionActive || isProcessing}
-                        className={`relative z-10 p-10 rounded-full transition-all transform ${
-                          isRecording
-                            ? 'bg-red-500 hover:bg-red-600 scale-110'
-                            : isProcessing
+                        className={`relative z-10 p-10 rounded-full transition-all transform ${isRecording
+                          ? 'bg-red-500 hover:bg-red-600 scale-110'
+                          : isProcessing
                             ? 'bg-gray-400 cursor-not-allowed'
                             : 'bg-blue-500 hover:bg-blue-600 hover:scale-105'
-                        } text-white shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed`}
+                          } text-white shadow-lg disabled:bg-gray-400 disabled:cursor-not-allowed`}
                       >
                         {isProcessing ? (
                           <Loader2 className="w-16 h-16 animate-spin" />
@@ -820,9 +810,8 @@ export default function ConversationView() {
                           <Volume2 className="w-5 h-5 text-gray-500" />
                           <div className="w-48 bg-gray-200 rounded-full h-3 overflow-hidden">
                             <div
-                              className={`h-3 rounded-full transition-all duration-100 ${
-                                audioLevel > 60 ? 'bg-green-500' : audioLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
-                              }`}
+                              className={`h-3 rounded-full transition-all duration-100 ${audioLevel > 60 ? 'bg-green-500' : audioLevel > 30 ? 'bg-yellow-500' : 'bg-red-500'
+                                }`}
                               style={{ width: `${audioLevel}%` }}
                             />
                           </div>
@@ -849,7 +838,7 @@ export default function ConversationView() {
                           onChange={(e) => setInputText(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handleTextSubmit()}
                           placeholder="メッセージを入力..."
-                          className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="flex-1 px-4 py-3 text-gray-900 bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 placeholder-gray-500"
                         />
                         <button
                           onClick={handleTextSubmit}
@@ -933,13 +922,12 @@ export default function ConversationView() {
   return (
     <div className="h-screen flex flex-col bg-gray-50 overflow-hidden">
       {/* 共通のVideoPanel - レスポンシブクリップで表示エリアを制御 */}
-      <div className={`fixed z-20 bg-black ${
-        isMobile
-          ? 'top-16 left-0 right-0' // モバイル: ヘッダー下から
-          : 'top-20 left-0 w-1/2'   // PC: ヘッダー下から左半分
-      }`} style={{
-        height: isMobile ? 'calc(50vh - 4rem)' : 'calc(100vh - 5rem)'
-      }}>
+      <div className={`fixed z-20 bg-black ${isMobile
+        ? 'top-16 left-0 right-0' // モバイル: ヘッダー下から
+        : 'top-20 left-0 w-1/2'   // PC: ヘッダー下から左半分
+        }`} style={{
+          height: isMobile ? 'calc(50vh - 4rem)' : 'calc(100vh - 5rem)'
+        }}>
         <VideoPanel
           isActive={isSessionActive}
           showSubtitles={showSubtitles}
@@ -952,11 +940,10 @@ export default function ConversationView() {
           <div className="absolute top-4 right-4 z-30">
             <button
               onClick={() => setShowSubtitles(!showSubtitles)}
-              className={`p-2 rounded-lg transition-colors ${
-                showSubtitles
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
+              className={`p-2 rounded-lg transition-colors ${showSubtitles
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
+                }`}
             >
               <Subtitles className="w-5 h-5" />
             </button>

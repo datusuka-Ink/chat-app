@@ -81,10 +81,10 @@ export default function AvatarsPage() {
     return name.includes(searchTerm.toLowerCase());
   });
 
-  // Rumiまたは推奨アバター
+  // アジア系女性および推奨アバター
   const recommendedAvatars = avatars.filter(avatar => {
     const name = getAvatarName(avatar).toLowerCase();
-    return name.includes('rumi') || name.includes('kristin') || name.includes('anna');
+    return name.includes('monica') || name.includes('kayla') || name.includes('kristin');
   });
 
   return (

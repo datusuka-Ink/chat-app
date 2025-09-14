@@ -34,7 +34,17 @@ export async function GET() {
 
     // アクティブなセッションの詳細情報を整形
     const sessions = data.data || [];
-    const formattedSessions = sessions.map((session: any) => ({
+    interface SessionData {
+      session_id: string;
+      status: string;
+      created_at?: string;
+      duration?: number;
+      avatar_id?: string;
+      avatar_name?: string;
+      quality?: string;
+      is_interactive?: boolean;
+    }
+    const formattedSessions = sessions.map((session: SessionData) => ({
       sessionId: session.session_id,
       status: session.status,
       createdAt: session.created_at,
@@ -98,7 +108,17 @@ export async function POST(request: NextRequest) {
     const sessions = data.data || [];
 
     // 指定されたセッションIDの情報を探す
-    const sessionInfo = sessions.find((s: any) => s.session_id === sessionId);
+    interface SessionData {
+      session_id: string;
+      status: string;
+      created_at?: string;
+      duration?: number;
+      avatar_id?: string;
+      avatar_name?: string;
+      quality?: string;
+      is_interactive?: boolean;
+    }
+    const sessionInfo = sessions.find((s: SessionData) => s.session_id === sessionId);
 
     if (!sessionInfo) {
       return NextResponse.json(

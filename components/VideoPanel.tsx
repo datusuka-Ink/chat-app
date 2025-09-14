@@ -63,10 +63,13 @@ const VideoPanel = memo(function VideoPanel({ isActive, showSubtitles, subtitle,
 
   // クリーンアップ
   useEffect(() => {
+    const container = containerRef.current;
+    const videoElement = videoElementRef.current;
+
     return () => {
-      if (videoElementRef.current && containerRef.current) {
+      if (videoElement && container) {
         console.log('VideoPanel: Cleaning up video element');
-        containerRef.current.removeChild(videoElementRef.current);
+        container.removeChild(videoElement);
         videoElementRef.current = null;
       }
       setupDoneRef.current = false;

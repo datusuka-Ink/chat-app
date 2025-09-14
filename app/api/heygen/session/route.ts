@@ -15,20 +15,32 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // アバターパラメータを設定（streaming.newはavatar_idのみサポート）
+    let avatarParams = {};
+
+    if (avatarId && avatarId !== 'default') {
+      console.log(`Using avatar_id: ${avatarId}`);
+      avatarParams = { avatar_id: avatarId };
+    }
+
+    const requestBody = {
+      quality: 'high',
+      ...avatarParams,
+      voice: {
+        rate: 1.0,
+      },
+      version: 'v2',
+    };
+
+    console.log('HeyGen API request body:', requestBody);
+
     const response = await fetch(HEYGEN_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'X-Api-Key': HEYGEN_API_KEY,
       },
-      body: JSON.stringify({
-        quality: 'high',
-        ...(avatarId && avatarId !== 'default' ? { avatar_name: avatarId } : {}),
-        voice: {
-          rate: 1.0,
-        },
-        version: 'v2',
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     if (!response.ok) {

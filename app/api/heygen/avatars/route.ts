@@ -7,6 +7,9 @@ const STREAMING_AVATARS_URL = 'https://api.heygen.com/v2/avatars?is_streaming=tr
 
 // 既知のInteractive Avatar（フォールバック用）
 const KNOWN_INTERACTIVE_AVATARS = [
+  { avatar_id: '74384d3dd9894ffb83cca47473eb6829', name: 'Custom Avatar (デフォルト)', is_interactive: true, type: 'custom' },
+  { avatar_id: 'Monica_public_3_20240108', name: 'Monica (アジア系女性)', is_interactive: true },
+  { avatar_id: 'Kayla_public_2_20240108', name: 'Kayla (女性)', is_interactive: true },
   { avatar_id: 'Kristin_public_3_20240108', name: 'Kristin', is_interactive: true },
   { avatar_id: 'Anna_public_3_20240108', name: 'Anna', is_interactive: true },
   { avatar_id: 'Susan_public_2_20240328', name: 'Susan', is_interactive: true },

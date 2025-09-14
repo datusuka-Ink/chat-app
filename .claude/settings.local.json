@@ -5,7 +5,9 @@
       "Bash(npx tsc:*)",
       "Bash(pnpm add:*)",
       "WebFetch(domain:docs.heygen.com)",
-      "WebSearch"
+      "WebSearch",
+      "WebFetch(domain:github.com)",
+      "Bash(npm run build:*)"
     ],
     "deny": [],
     "ask": []
